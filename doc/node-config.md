@@ -16,6 +16,9 @@ Mainnet configuration file:
 
 Create the file if it does not exist. Restart the node after changing it.
 
+All configuration examples below are comment-free and safe to copy directly into
+`zerohour.conf`. Explanations are provided outside the config blocks.
+
 ## Recommended Network-Supporting User Node Config
 
 Use this as the target configuration for a normal user node after the snapshot
@@ -24,35 +27,22 @@ ZHCASH network by accepting inbound peers, relaying transactions, and serving
 blocks to other nodes.
 
 ```ini
-# ZHCASH network-supporting user node config
-
-# Local RPC for wallet tools, local apps, or local proxy
 server=1
 rpcbind=127.0.0.1
 rpcallowip=127.0.0.1
 rpcthreads=4
 rpcworkqueue=64
 rpcservertimeout=120
-
-# P2P: accept inbound peers and help the network
 listen=1
 upnp=1
 dnsseed=1
 maxconnections=32
 maxuploadtarget=0
-
-# Normal network behavior
 blocksonly=0
 staking=1
-
-# PWA/proxy support
 txindex=1
-
-# Desktop-friendly performance settings
 dbcache=1024
 par=0
-
-# Lightweight logs
 debug=0
 logtimemicros=0
 ```
@@ -82,33 +72,24 @@ Use this for older Windows machines, low-power mini PCs, laptops, or systems
 where GUI responsiveness matters more than maximum peer count.
 
 ```ini
-# ZHCASH weak staker config
-
 server=1
 rpcbind=127.0.0.1
 rpcallowip=127.0.0.1
 rpcthreads=2
 rpcworkqueue=32
 rpcservertimeout=120
-
-# Still help the network, but keep peer/load limits modest
 listen=1
 upnp=1
 dnsseed=1
 maxconnections=16
 maxuploadtarget=1000
-
-# Staking
 blocksonly=0
 staking=1
 stakecache=0
 reservebalance=0
-
-# Low-memory / low-I/O settings
 dbcache=512
 par=1
 txindex=0
-
 debug=0
 logtimemicros=0
 ```
@@ -122,35 +103,24 @@ Use this for a modern user node with SSD/NVMe and enough RAM. This is the best
 default profile for users who want to stake and strengthen the network.
 
 ```ini
-# ZHCASH powerful staker config
-
 server=1
 rpcbind=127.0.0.1
 rpcallowip=127.0.0.1
 rpcthreads=4
 rpcworkqueue=64
 rpcservertimeout=120
-
-# Strong network participation
 listen=1
 upnp=1
 dnsseed=1
 maxconnections=48
 maxuploadtarget=0
-
-# Staking
 blocksonly=0
 staking=1
 stakecache=1
 reservebalance=0
-
-# PWA/proxy support
 txindex=1
-
-# Performance
 dbcache=2048
 par=0
-
 debug=0
 logtimemicros=0
 ```
@@ -165,35 +135,24 @@ and enough RAM. This profile prioritizes staking responsiveness and network
 support over resource conservation.
 
 ```ini
-# ZHCASH aggressive staking config
-
 server=1
 rpcbind=127.0.0.1
 rpcallowip=127.0.0.1
 rpcthreads=8
 rpcworkqueue=128
 rpcservertimeout=180
-
-# Maximum network support for a user-operated staker
 listen=1
 upnp=1
 dnsseed=1
 maxconnections=96
 maxuploadtarget=0
-
-# Aggressive staking
 blocksonly=0
 staking=1
 stakecache=1
 reservebalance=0
-
-# PWA/proxy support
 txindex=1
-
-# High-performance local database/cache settings
 dbcache=4096
 par=0
-
 debug=0
 logtimemicros=0
 ```
@@ -210,35 +169,22 @@ not the best long-term network-supporting profile; switch to the profile above
 after the first sync.
 
 ```ini
-# ZHCASH Windows stable sync config
-
-# Local RPC for wallet tools, local apps, or local proxy
 server=1
 rpcbind=127.0.0.1
 rpcallowip=127.0.0.1
 rpcthreads=4
 rpcworkqueue=64
 rpcservertimeout=120
-
-# P2P: do not accept inbound public peer connections
 listen=0
 upnp=0
 dnsseed=1
 maxconnections=12
 maxuploadtarget=500
-
-# Reduce unnecessary load while catching up
 blocksonly=1
 staking=0
-
-# Database performance
 dbcache=1024
 par=0
-
-# Temporary low-I/O mode for weak/unstable machines only
 txindex=0
-
-# Keep logs lightweight
 debug=0
 logtimemicros=0
 ```
@@ -272,25 +218,16 @@ rpcallowip=127.0.0.1
 rpcthreads=4
 rpcworkqueue=64
 rpcservertimeout=120
-
-# P2P: accept inbound peers and ask the router to map the port automatically
 listen=1
 upnp=1
 dnsseed=1
 maxconnections=32
 maxuploadtarget=2000
-
-# Normal synced-node behavior
 blocksonly=0
 staking=1
-
-# PWA/proxy support
 txindex=1
-
-# Desktop-friendly database settings
 dbcache=1024
 par=0
-
 debug=0
 logtimemicros=0
 ```
@@ -365,15 +302,11 @@ maxuploadtarget=0
 addnode=node1.zeroscan.io
 addnode=node2.zeroscan.io
 addnode=node3.zeroscan.io
-
-# PWA/proxy nodes should relay normal network data and maintain txindex
 blocksonly=0
 staking=0
 txindex=1
-
 dbcache=2048
 par=0
-
 debug=0
 ```
 
