@@ -4,23 +4,44 @@ ZMQ RPC methods show configured ZeroMQ notification endpoints.
 
 ## Menu
 
-* [ZMQ Notifications](#zmq-notifications)
+* [getzmqnotifications](#getzmqnotifications)
 * [Full Method Index](#full-method-index)
 
-## ZMQ Notifications
+## Methods
 
-| Method | Safety | Signature |
-| --- | --- | --- |
-| `getzmqnotifications` | Read-only | `getzmqnotifications` |
+### getzmqnotifications
 
-Example:
+Safety: Read-only
+
+Returns information about the active ZeroMQ notifications.
+
+Signature:
+
+```text
+getzmqnotifications
+```
+
+Example call:
 
 ```bash
 zerohour-cli getzmqnotifications
 ```
 
-Use this to verify whether the node is publishing block or transaction
-notifications to external services.
+Example JSON-RPC request:
+
+```bash
+curl --user "$COOKIE" \
+  --data-binary '{"jsonrpc":"1.0","id":"curltest","method":"getzmqnotifications","params":[]}' \
+  -H 'content-type:text/plain;' \
+  http://127.0.0.1:3889/
+```
+
+Checked example response:
+
+```json
+[
+]
+```
 
 ## Full Method Index
 
