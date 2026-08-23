@@ -16,6 +16,7 @@ corrected v1.0.0 method list and beginner-safe examples.
 
 * [Quick Start](#quick-start)
 * [API Endpoint](#api-endpoint)
+* [Recommended Node Configuration](doc/node-config.md)
 * [Authentication](#authentication)
 * [JSON-RPC Request Format](#json-rpc-request-format)
 * [Common RPC Parameters](#common-rpc-parameters)
