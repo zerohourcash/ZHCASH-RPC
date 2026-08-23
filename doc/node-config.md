@@ -1,8 +1,21 @@
 # Recommended ZHCASH Node Configuration
 
-This page explains the most useful `zerohour.conf` options for stable ZHCASH
-node operation, especially on Windows nodes that are started from a blockchain
-snapshot and then used by a local wallet, local RPC client, or proxy system.
+This page documents practical `zerohour.conf` profiles and the most important
+configuration parameters available in ZHCASH Core v1.0.0.
+
+The goal is to prepare the network for stronger P2P participation,
+`ZHP2PProxy`, and PWA wallet support while still giving weak machines a safe
+low-resource mode.
+
+The options below were checked against the node source:
+
+| Source | What it defines |
+| --- | --- |
+| `src/init.cpp` | Core, network, RPC, relay, ZMQ, diagnostics, block creation, ZHC/EVM state options |
+| `src/wallet/init.cpp` | Wallet, staking, fees, wallet database options |
+| `src/chainparams.cpp` | Mainnet P2P port and DNS seeds |
+| `src/chainparamsbase.cpp` | Mainnet RPC port |
+| `src/miner.cpp` | `aggressive-staking` behavior |
 
 ## Configuration File Location
 
@@ -14,17 +27,38 @@ Mainnet configuration file:
 | Linux | `$HOME/.zerohour/zerohour.conf` |
 | macOS | `$HOME/Library/Application Support/ZHCASH/zerohour.conf` |
 
+Mainnet defaults:
+
+| Purpose | Default |
+| --- | --- |
+| P2P port | `38100` |
+| RPC port | `3889` |
+
 Create the file if it does not exist. Restart the node after changing it.
 
-All configuration examples below are comment-free and safe to copy directly into
-`zerohour.conf`. Explanations are provided outside the config blocks.
+All configuration examples are comment-free and safe to copy directly into
+`zerohour.conf`. Use `key=value` format.
 
-## Recommended Network-Supporting User Node Config
+## Profile Selection
 
-Use this as the target configuration for a normal user node after the snapshot
-is installed and the node is close to being synchronized. This profile helps the
-ZHCASH network by accepting inbound peers, relaying transactions, and serving
-blocks to other nodes.
+| User type | Recommended profile | Main goal |
+| --- | --- | --- |
+| Standard user, home internet, no manually configured public IP | Standard User / Network-Supporting Node | Support the network, PWA/proxy ready, safe local RPC |
+| Weak PC or low-resource laptop | Weak Machine / Weak Staker | Avoid freezes and high disk/RAM pressure |
+| Powerful desktop staker | Powerful Staker | Stake, relay, serve blocks, support PWA/proxy |
+| Always-on aggressive staker | Aggressive Staking | Maximum staking responsiveness and network support |
+| Server node / PWA backend / proxy backend | Server / RPC / PWA Proxy Node | Strong backend for PWA wallet and ZHP2PProxy |
+| Explorer / indexer | Infrastructure / Explorer Node | Full indexing and backend RPC capability |
+
+## Standard User / Network-Supporting Node
+
+Use this for normal users. It is designed to strengthen the network even when
+the user does not manually configure a public IP. `upnp=1` asks the home router
+to open the P2P port automatically. If the user is behind CGNAT or double NAT,
+inbound connections may still not work, but the node will still connect outbound
+and participate normally.
+
+This profile is also PWA/proxy-ready because it keeps `txindex=1`.
 
 ```ini
 server=1
@@ -36,10 +70,13 @@ rpcservertimeout=120
 listen=1
 upnp=1
 dnsseed=1
+discover=1
 maxconnections=32
 maxuploadtarget=0
 blocksonly=0
 staking=1
+stakecache=1
+reservebalance=0
 txindex=1
 dbcache=1024
 par=0
@@ -47,29 +84,13 @@ debug=0
 logtimemicros=0
 ```
 
-This is the recommended long-term profile for users who want to support the
-network. `upnp=1` lets home routers automatically open the ZHCASH P2P port when
-possible. `maxuploadtarget=0` means unlimited daily outbound block serving; if a
-user has a limited internet plan, set a cap such as `maxuploadtarget=2000`.
+Use this as the default long-term user profile after the snapshot is installed.
 
-## Staking Profile Selection
+## Weak Machine / Weak Staker
 
-Choose one of these profiles for staking nodes:
-
-| Profile | Hardware | Goal |
-| --- | --- | --- |
-| Weak staker | Low-power laptop, old desktop, 4 GB RAM, slow disk | Stake without freezing the machine. |
-| Powerful staker | Modern desktop/server, 8-16 GB RAM, SSD/NVMe | Stake and support the network actively. |
-| Aggressive staking | Always-on strong machine, stable internet, SSD/NVMe | Maximum network support and fast staking responsiveness. |
-
-Only weak nodes should use `txindex=0`. All normal, powerful, aggressive,
-proxy, and PWA-supporting nodes should use `txindex=1` so applications can query
-arbitrary historical transactions by `txid`.
-
-## Weak Staker Config
-
-Use this for older Windows machines, low-power mini PCs, laptops, or systems
-where GUI responsiveness matters more than maximum peer count.
+Use this for older laptops, weak Windows PCs, 4 GB RAM systems, slow disks, or
+users who report GUI freezes. This profile still tries to help the network, but
+it is not a full PWA/proxy backend because `txindex=0`.
 
 ```ini
 server=1
@@ -81,26 +102,28 @@ rpcservertimeout=120
 listen=1
 upnp=1
 dnsseed=1
-maxconnections=16
+discover=1
+maxconnections=12
 maxuploadtarget=1000
 blocksonly=0
 staking=1
 stakecache=0
 reservebalance=0
+txindex=0
 dbcache=512
 par=1
-txindex=0
 debug=0
 logtimemicros=0
 ```
 
-`stakecache=0` reduces memory usage. It can make staking less efficient than on
-a stronger machine, but it is safer for weak systems.
+Weak nodes can stake and relay normally, but they should not be counted as
+reliable PWA wallet / proxy backends.
 
-## Powerful Staker Config
+## Temporary Snapshot Catch-Up Mode
 
-Use this for a modern user node with SSD/NVMe and enough RAM. This is the best
-default profile for users who want to stake and strengthen the network.
+Use this only when a Windows node freezes during the first catch-up after
+installing a snapshot. It reduces network and staking pressure. Switch to a
+network-supporting profile after sync.
 
 ```ini
 server=1
@@ -109,9 +132,43 @@ rpcallowip=127.0.0.1
 rpcthreads=4
 rpcworkqueue=64
 rpcservertimeout=120
+listen=0
+upnp=0
+dnsseed=1
+maxconnections=8
+maxuploadtarget=500
+blocksonly=1
+staking=0
+stakecache=0
+txindex=0
+dbcache=512
+par=1
+debug=0
+logtimemicros=0
+```
+
+If the machine will later support PWA wallet or proxy calls, enable `txindex=1`
+from the beginning when possible. If the node was synced with `txindex=0`,
+switching to `txindex=1` later can take additional time while the transaction
+index is built.
+
+## Powerful Staker
+
+Use this for a modern desktop/server with SSD or NVMe and at least 8 GB RAM.
+This is the recommended staking profile for users who should support PWA/proxy
+traffic as well.
+
+```ini
+server=1
+rpcbind=127.0.0.1
+rpcallowip=127.0.0.1
+rpcthreads=4
+rpcworkqueue=96
+rpcservertimeout=120
 listen=1
 upnp=1
 dnsseed=1
+discover=1
 maxconnections=48
 maxuploadtarget=0
 blocksonly=0
@@ -125,14 +182,13 @@ debug=0
 logtimemicros=0
 ```
 
-`stakecache=1` is recommended here because it improves staking performance. It
-can use more memory, so avoid it on weak machines.
+## Aggressive Staking
 
-## Aggressive Staking Config
-
-Use this only for an always-on strong machine with stable internet, SSD/NVMe,
-and enough RAM. This profile prioritizes staking responsiveness and network
-support over resource conservation.
+Use this only on strong always-on machines with stable internet and SSD/NVMe.
+`aggressive-staking=1` checks more often so the node can publish a valid PoS
+block as soon as it becomes valid. In code this reduces the wait loop from about
+3 seconds to about 100 milliseconds. It may improve responsiveness, but it can
+increase stale/orphan risk and early broadcast rejection risk.
 
 ```ini
 server=1
@@ -144,6 +200,7 @@ rpcservertimeout=180
 listen=1
 upnp=1
 dnsseed=1
+discover=1
 maxconnections=96
 maxuploadtarget=0
 blocksonly=0
@@ -158,188 +215,91 @@ debug=0
 logtimemicros=0
 ```
 
-This profile is not recommended for weak Windows desktops. If the GUI becomes
-unresponsive, lower `maxconnections`, lower `dbcache`, or use the weak staker
-profile.
+If the GUI becomes unresponsive, lower `maxconnections`, lower `dbcache`, remove
+`aggressive-staking=1`, or use the weak profile.
 
-`aggressive-staking=1` makes the staker check more often so it can publish a
-valid PoS block immediately when it becomes valid. This can improve staking
-responsiveness, but it can also increase stale/orphan risk and the chance of
-peers rejecting early/invalid broadcasts. Use it only on stable, powerful,
-always-on nodes.
+## Server / RPC / PWA Proxy Node
 
-## Temporary Windows Snapshot Sync Config
-
-Use this profile for a normal Windows node after installing a snapshot. It
-reduces peer load, disables staking during catch-up, and keeps RPC local. It is
-not the best long-term network-supporting profile; switch to the profile above
-after the first sync.
+Use this for a backend node that supports an API service, PWA wallet, or
+`ZHP2PProxy`. RPC is private by default. On managed servers, use firewall rules
+and keep RPC reachable only from trusted local services or private networks.
 
 ```ini
 server=1
+daemon=1
 rpcbind=127.0.0.1
 rpcallowip=127.0.0.1
-rpcthreads=4
-rpcworkqueue=64
-rpcservertimeout=120
-listen=0
+rpcthreads=12
+rpcworkqueue=256
+rpcservertimeout=180
+listen=1
 upnp=0
 dnsseed=1
-maxconnections=12
-maxuploadtarget=500
-blocksonly=1
-staking=0
-dbcache=1024
-par=0
-txindex=0
-debug=0
-logtimemicros=0
-```
-
-After the node is fully synchronized, switch to the network-supporting profile
-above. At minimum, change:
-
-```ini
-listen=1
-upnp=1
-blocksonly=0
-staking=1
+discover=1
+maxconnections=128
 maxuploadtarget=0
-txindex=1
-```
-
-If `txindex=0` was used during the first sync, enabling `txindex=1` later can
-take additional time while the node builds the transaction index. For machines
-that are intended to support the PWA wallet or an RPC proxy, prefer starting
-with `txindex=1` from the beginning unless the machine is too weak.
-
-## Alternative Synced Home Node Config With Upload Cap
-
-Use this profile if the user wants to help the network but also wants a daily
-upload cap.
-
-```ini
-server=1
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=4
-rpcworkqueue=64
-rpcservertimeout=120
-listen=1
-upnp=1
-dnsseed=1
-maxconnections=32
-maxuploadtarget=2000
 blocksonly=0
-staking=1
+staking=0
 txindex=1
-dbcache=1024
+addrindex=1
+dbcache=4096
 par=0
+maxmempool=600
 debug=0
 logtimemicros=0
 ```
 
-`upnp=1` is useful for users behind a home router with a public WAN IP. It asks
-the router to open the ZHCASH P2P port automatically, so other nodes can connect
-inbound. This strengthens the network because more home nodes can serve blocks
-and relay transactions.
+If the server also stakes, change:
 
-`upnp=1` does not help when the user is behind CGNAT, double NAT, a mobile
-carrier network, or an ISP router that does not expose a real public IP. In
-those cases the node can still connect outbound and sync normally, but it will
-not become a reachable public peer without a real public IP, port forwarding,
-VPN, or another routing solution.
+```ini
+staking=1
+stakecache=1
+reservebalance=0
+```
 
-## Recommended Config With Trusted ZHCASH Nodes
+Do not expose RPC directly to the public internet. Put public services behind a
+proxy/API layer.
 
-If you operate stable seed/full nodes, Windows users can connect only to those
-nodes during the first sync. This avoids random slow or outdated peers.
+## Infrastructure / Explorer Node
+
+Use this for explorers, indexers, analytics, and backend services that need
+complete query capability. This is heavier than a normal node.
 
 ```ini
 server=1
+daemon=1
 rpcbind=127.0.0.1
 rpcallowip=127.0.0.1
-rpcthreads=4
-rpcworkqueue=64
-rpcservertimeout=120
-
-listen=0
+rpcthreads=16
+rpcworkqueue=512
+rpcservertimeout=300
+listen=1
 upnp=0
-dnsseed=0
-maxconnections=8
-maxuploadtarget=500
-
-addnode=node1.zeroscan.io
-addnode=node2.zeroscan.io
-addnode=node3.zeroscan.io
-
-blocksonly=1
+dnsseed=1
+discover=1
+maxconnections=192
+maxuploadtarget=0
+blocksonly=0
 staking=0
-dbcache=1024
-par=0
 txindex=1
-
+addrindex=1
+dbcache=6144
+par=0
+maxmempool=1000
+zhcstatecache=512
+zhcstatewritebuffer=128
+zhcstatelookupcache=512
 debug=0
 logtimemicros=0
 ```
 
-Replace `node1.zeroscan.io`, `node2.zeroscan.io`, and `node3.zeroscan.io` with
-real ZHCASH full-node hostnames.
-
-## Recommended Config for an RPC / PWA Proxy Node
-
-Use this when an application, backend proxy, or PWA wallet talks to the node
-through RPC. This profile keeps RPC private by default, but still lets the node
-help the P2P network if it runs on a reachable machine.
-
-```ini
-server=1
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=8
-rpcworkqueue=128
-rpcservertimeout=120
-
-listen=1
-upnp=1
-dnsseed=1
-maxconnections=48
-maxuploadtarget=0
-
-addnode=node1.zeroscan.io
-addnode=node2.zeroscan.io
-addnode=node3.zeroscan.io
-blocksonly=0
-staking=0
-txindex=1
-dbcache=2048
-par=0
-debug=0
-```
-
-This keeps RPC private on `127.0.0.1`. Do not expose RPC to the public internet.
-If this proxy node should also stake, change `staking=0` to `staking=1` and use
-the powerful or aggressive staking profile as the base.
-
-On a managed server with a public IP and manual firewall rules, use `upnp=0`.
-On a home machine behind a router, use `upnp=1`.
+Use only on machines with enough RAM and fast storage.
 
 ## ZHP2PProxy Preparation
 
 The target direction is that the ZHCASH network can support `ZHP2PProxy`
 gradually, with proxy functionality first tested as an external layer and later
 integrated into the node code where appropriate.
-
-To prepare the network correctly, use proxy-ready node profiles now:
-
-| Node type | Proxy/PWA ready | Recommended profile |
-| --- | --- | --- |
-| Weak desktop staker | No | Weak Staker Config |
-| Normal user node | Yes | Recommended Network-Supporting User Node Config |
-| Powerful staker | Yes | Powerful Staker Config |
-| Aggressive staker | Yes | Aggressive Staking Config |
-| RPC / PWA proxy backend | Yes | Recommended Config for an RPC / PWA Proxy Node |
-| Explorer / public backend | Yes | Recommended Config for a Public Infrastructure Node |
 
 Proxy-ready nodes should use:
 
@@ -357,78 +317,19 @@ For home nodes behind a router:
 upnp=1
 ```
 
-For managed servers with a public IP and manual firewall rules:
+For managed servers:
 
 ```ini
 upnp=0
 ```
 
-Weak nodes may use `txindex=0`, lower `maxconnections`, and lower `dbcache`, but
-they should not be counted as full PWA/proxy backend nodes.
-
-## ZHP2PProxy Readiness Checklist
-
-Before a node is used by `ZHP2PProxy` or a PWA wallet backend, verify:
-
-```bash
-zerohour-cli getblockchaininfo
-zerohour-cli getnetworkinfo
-zerohour-cli getconnectioncount
-zerohour-cli getpeerinfo
-zerohour-cli getmempoolinfo
-```
-
-Expected state:
-
-| Check | Expected result |
-| --- | --- |
-| Sync | `getblockchaininfo.blocks` is close to `headers`. |
-| Initial block download | `initialblockdownload` is `false` when present. |
-| P2P | `getconnectioncount` is greater than zero. |
-| Relay | `blocksonly=0` for proxy-ready nodes. |
-| Transaction index | `txindex=1` and arbitrary historical `getrawtransaction <txid> true` works. |
-| RPC safety | RPC is private: `rpcbind=127.0.0.1` unless protected by VPN/firewall/proxy. |
-| Upload | `maxuploadtarget=0` for nodes intended to strengthen the network. |
-| Logs | No repeated `socket sending timeout`, database corruption, or reindex loop. |
-
-For staking proxy-ready nodes, also verify:
-
-```bash
-zerohour-cli getstakinginfo
-```
-
-Expected staking state:
-
-| Check | Expected result |
-| --- | --- |
-| Staking enabled | `staking=1` in config and staking is enabled in `getstakinginfo`. |
-| Wallet | Wallet is loaded and unlocked for staking if encryption is enabled. |
-| Sync | Node is fully synchronized before staking is expected to work. |
-| Weak machines | If the machine freezes, use the weak staker profile and do not use it as a PWA/proxy backend. |
-
-## ZHP2PProxy Rollout Plan
-
-Recommended rollout order:
-
-1. Prepare configs and installer defaults so normal nodes become
-   network-supporting and proxy-ready by default.
-2. Keep weak-machine mode available as an explicit low-resource fallback.
-3. Test external `ZHP2PProxy` against several node classes: normal,
-   powerful-staker, aggressive-staker, and infrastructure.
-4. Monitor RPC latency, peer stability, mempool behavior, txindex availability,
-   and GUI responsiveness on Windows.
-5. After external behavior is stable, gradually move proven proxy behavior into
-   the node code.
-
-This keeps the current network stable while preparing nodes for future native
-`ZHP2PProxy` support.
+Weak machines may use `txindex=0`, lower `maxconnections`, and lower `dbcache`,
+but they should not be treated as PWA/proxy backend nodes.
 
 ## PWA Wallet Usage Model
 
 The PWA wallet can use this system by connecting to a `ZHP2PProxy` or backend
 API layer instead of depending on one overloaded public node.
-
-Recommended flow:
 
 ```text
 PWA wallet
@@ -443,150 +344,366 @@ For the PWA wallet, proxy-ready nodes should provide:
 | --- | --- |
 | Current chain status | `getblockchaininfo`, `getblockcount`, `getbestblockhash` |
 | Transaction lookup | `txindex=1` and `getrawtransaction` |
-| Address/wallet backend indexing | Stable RPC and full historical transaction access |
+| Address and history backend indexing | Stable RPC and full historical transaction access |
 | Transaction broadcast | `blocksonly=0` and working P2P connections |
 | Fast failover | Multiple proxy-ready nodes behind `ZHP2PProxy` |
 | Network resilience | `listen=1`, enough peers, and sufficient upload capacity |
 
-This is why weak nodes are treated separately. A weak node can still stake and
-sync, but it should not be considered a reliable PWA wallet backend if it runs
-with `txindex=0`, low cache, and low peer limits.
+## ZHP2PProxy Readiness Checklist
 
-For normal, powerful, aggressive, proxy, and infrastructure nodes, keep
-`txindex=1` so the PWA wallet can query historical transactions consistently
-through the proxy layer.
+Before a node is used by `ZHP2PProxy` or a PWA wallet backend, verify:
 
-## Recommended Config for a Public Infrastructure Node
-
-Use this profile for a server node, explorer backend, indexer, or other
-infrastructure component. This node accepts P2P connections and keeps the full
-transaction index.
-
-```ini
-server=1
-daemon=1
-
-listen=1
-upnp=0
-dnsseed=1
-maxconnections=64
-maxuploadtarget=0
-
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=8
-rpcworkqueue=128
-rpcservertimeout=120
-
-txindex=1
-staking=1
-
-dbcache=2048
-par=0
-
-debug=0
-logtimemicros=0
+```bash
+zerohour-cli getblockchaininfo
+zerohour-cli getnetworkinfo
+zerohour-cli getconnectioncount
+zerohour-cli getpeerinfo
+zerohour-cli getmempoolinfo
+zerohour-cli getindexinfo
 ```
 
-For a low-memory server, use a smaller profile:
+Expected state:
 
-```ini
-dbcache=512
-maxconnections=32
-rpcthreads=4
-rpcworkqueue=32
-```
-
-## Option Reference
-
-| Option | Recommended Use | Effect |
-| --- | --- | --- |
-| `server=1` | RPC/API nodes | Enables JSON-RPC server support. Required for external apps using RPC. |
-| `daemon=1` | Linux server nodes | Runs `zerohourd` in the background. Not used by Windows GUI. |
-| `rpcbind=127.0.0.1` | Default safe setting | Binds RPC only to localhost. |
-| `rpcallowip=127.0.0.1` | Default safe setting | Allows RPC only from the same machine. |
-| `rpcthreads` | API/proxy nodes | Number of worker threads serving RPC calls. Higher helps when several apps call RPC at once. |
-| `rpcworkqueue` | API/proxy nodes | Queue depth for pending RPC calls. Higher helps absorb bursts. |
-| `rpcservertimeout` | API/proxy nodes | HTTP RPC timeout in seconds. Higher avoids failures on slow calls. |
-| `listen=0` | Temporary first-sync or local-only RPC mode | The node does not accept inbound P2P connections. It still connects out, downloads blocks, syncs, and broadcasts transactions. |
-| `listen=1` | Recommended for synced user nodes and public/server nodes | Accepts inbound P2P peer connections and helps serve the network. |
-| `upnp=0` | First sync, local-only RPC, servers with manual firewall rules | Prevents automatic router port mapping. Safer and more predictable during initial sync or on managed servers. |
-| `upnp=1` | Synced home nodes behind a router | Asks the router to open the P2P port automatically. Useful for users with a public WAN IP who want to help the network. |
-| `dnsseed=1` | General use | Finds peers through DNS seeds. |
-| `dnsseed=0` | Managed/trusted-peer sync | Disables automatic DNS peer discovery. Use with `addnode`. |
-| `addnode=<host>` | Managed sync | Adds a trusted node and tries to keep a connection to it. |
-| `maxconnections` | Stability tuning | Limits peer count. Lower values reduce CPU, memory, socket, and upload pressure. |
-| `maxuploadtarget` | Network-supporting nodes | Limits outbound traffic per 24 hours in MiB. `0` means unlimited and is best for strengthening the network. |
-| `blocksonly=1` | First sync / snapshot catch-up | Rejects network mempool transactions while still accepting blocks and wallet/RPC transactions. Reduces noise during sync. |
-| `blocksonly=0` | Fully synced wallet | Enables normal transaction relay and mempool behavior. |
-| `staking=0` | First sync | Disables staking while the node catches up. |
-| `staking=1` | Synced staking wallet | Enables staking when the wallet is ready and synchronized. |
-| `stakecache=0` | Weak stakers | Disables staking cache to reduce memory use. |
-| `stakecache=1` | Powerful and aggressive stakers | Enables staking cache for better staking performance, with higher memory use. |
-| `aggressive-staking=1` | Aggressive stakers only | Checks more often to publish a valid PoS block immediately. Higher responsiveness, higher stale/orphan and rejection risk. |
-| `reservebalance=0` | Stakers | Allows the full available wallet balance to participate in staking. Increase it to keep part of the balance out of staking. |
-| `dbcache` | Performance tuning | Increases database cache in MiB. Higher improves chainstate performance but uses more RAM. |
-| `par=0` | Default recommended | Uses automatic script-verification thread selection. |
-| `par=1` | Weak machines | Limits script verification parallelism to reduce CPU pressure. |
-| `txindex=0` | Weak wallet/staker only | Avoids maintaining the full transaction index. Faster and lighter, but not suitable for PWA/proxy support. |
-| `txindex=1` | Recommended for normal, powerful, aggressive, proxy, PWA, explorer, and API nodes | Maintains a full transaction index. Required when applications must query arbitrary historical transactions by `txid`. |
-| `staker-min-tx-gas-price` | Advanced block creation | Minimum gas price for contract transactions included by the staker. Leave unset unless operating a tuned block-production node. |
-| `staker-max-tx-gas-limit` | Advanced block creation | Maximum gas limit per contract transaction included by the staker. Leave unset unless you know the intended policy. |
-| `staker-soft-block-gas-limit` | Advanced block creation | Soft gas limit for contract execution included in a staker block. Leave unset for normal stakers. |
-| `debug=0` | Normal use | Keeps debug logging minimal. |
-| `logtimemicros=0` | Normal use | Keeps timestamps shorter and logs lighter. |
-
-## Options to Avoid During Normal Sync
-
-Do not enable these unless you know why they are needed:
-
-```ini
-reindex=1
-rescan=1
-debug=net
-debug=bench
-```
-
-Why:
-
-| Option | Risk |
+| Check | Expected result |
 | --- | --- |
-| `reindex=1` | Rebuilds block indexes and can make startup very slow. |
-| `rescan=1` | Rescans wallet transactions and can take a long time. |
-| `debug=net` | Creates large logs and adds disk I/O. |
-| `debug=bench` | Useful for diagnosis, but noisy for normal users. |
+| Sync | `blocks` is close to `headers`. |
+| Initial block download | `initialblockdownload` is `false` when present. |
+| P2P | `getconnectioncount` is greater than zero. |
+| Relay | `blocksonly=0` for proxy-ready nodes. |
+| Transaction index | `txindex=1` and historical `getrawtransaction <txid> true` works. |
+| RPC safety | RPC is private unless protected by VPN/firewall/proxy. |
+| Upload | `maxuploadtarget=0` for nodes intended to strengthen the network. |
+| Logs | No repeated database corruption, reindex loop, or constant socket timeouts. |
 
-## Temporary Diagnostic Config
+For staking nodes, also verify:
 
-If a node appears stuck, temporarily enable:
+```bash
+zerohour-cli getstakinginfo
+```
+
+## Full Practical Parameter Reference
+
+This is not a recommendation to set every option. It is a practical reference
+for options exposed by the node code.
+
+### Core and Data Directory
+
+| Option | Use |
+| --- | --- |
+| `conf=<file>` | Use a non-default config file. |
+| `datadir=<dir>` | Use a non-default data directory. Avoid changing this for normal users. |
+| `blocksdir=<dir>` | Store block files outside the main data directory. Advanced only. |
+| `includeconf=<file>` | Include another config file from the data directory. |
+| `pid=<file>` | PID file path for daemon/service setups. |
+| `daemon=1` | Run in background on Linux/server nodes. |
+| `server=1` | Enable RPC server. Required for CLI, API, proxy, and PWA backends. |
+| `sysperms=1` | Use system default file permissions. Usually avoid. |
+| `alertnotify=<cmd>` | Run a command for alerts or long forks. Operations/monitoring only. |
+| `blocknotify=<cmd>` | Run a command when the best block changes. Useful for indexers. |
+| `loadblock=<file>` | Import blocks from an external blk file. Advanced recovery/import. |
+| `help-debug=1` | Show debug/test help in CLI help output. Not a normal config setting. |
+
+### Indexing and Storage
+
+| Option | Use |
+| --- | --- |
+| `txindex=1` | Full transaction index. Required for PWA/proxy, explorers, APIs, arbitrary `getrawtransaction`. |
+| `txindex=0` | Weak nodes only. Reduces disk I/O but is not PWA/proxy-ready. |
+| `addrindex=1` | Address index. Useful for explorers/backends if supported by your workflows. Heavier than normal wallet mode. |
+| `prune=<MiB>` | Pruned mode. Do not use with `txindex=1`. Not recommended for PWA/proxy nodes. |
+| `dbcache=<MiB>` | Main database cache. Higher helps performance but uses RAM. |
+| `dbbatchsize=<bytes>` | Advanced database write batch tuning. Leave unset normally. |
+| `reindex=1` | Rebuild block index from block files. Use only for recovery. Remove after use. |
+| `reindex-chainstate=1` | Rebuild chainstate from indexed blocks. Use only for recovery. Remove after use. |
+| `deleteblockchaindata=1` | Deletes local blockchain data. Dangerous; installer/recovery only. |
+
+### P2P Network
+
+| Option | Use |
+| --- | --- |
+| `listen=1` | Accept inbound P2P peers. Recommended for network-supporting nodes. |
+| `listen=0` | Outbound-only mode. Temporary sync mode or local-only setups. |
+| `upnp=1` | Ask home router to map the P2P port automatically. Good for users without manual port forwarding. |
+| `upnp=0` | Recommended on managed servers with manual firewall rules. |
+| `port=38100` | Mainnet P2P port. Usually leave default. |
+| `bind=<addr>` | Bind P2P to a specific local interface. Server advanced. |
+| `whitebind=<addr>` | Bind and whitelist peers on that interface. Advanced/trusted networks. |
+| `externalip=<ip>` | Announce a known public IP. Use only when correct. |
+| `discover=1` | Discover own IP addresses. Good for normal listening nodes. |
+| `dnsseed=1` | Use DNS seeds to find peers. Recommended generally. |
+| `forcednsseed=1` | Always query DNS seeds. Useful for peer discovery troubleshooting. |
+| `dns=1` | Allow DNS lookups for `addnode`, `seednode`, and `connect`. |
+| `addnode=<host>` | Keep a connection to a specific node. Can be repeated. |
+| `seednode=<host>` | Connect to retrieve peer addresses, then disconnect. |
+| `connect=<host>` | Connect only to specified node(s). Use carefully; disables normal peer discovery behavior. |
+| `maxconnections=<n>` | Maximum peer count. Higher supports the network but uses more resources. |
+| `maxuploadtarget=<MiB>` | Daily upload target. `0` means unlimited. |
+| `maxreceivebuffer=<n>` | Per-connection receive buffer in thousands of bytes. Advanced. |
+| `maxsendbuffer=<n>` | Per-connection send buffer in thousands of bytes. Advanced. |
+| `timeout=<ms>` | Outbound connection timeout. Leave default normally. |
+| `peertimeout=<sec>` | Peer inactivity timeout. Leave default unless diagnosing peer issues. |
+| `banscore=<n>` | Misbehavior score threshold. Leave default. |
+| `bantime=<sec>` | Misbehaving peer ban duration. Leave default. |
+| `onlynet=ipv4/ipv6/onion` | Restrict outgoing network type. Advanced. |
+| `proxy=<ip:port>` | SOCKS5 proxy for outbound peers. |
+| `onion=<ip:port>` | Separate SOCKS5 proxy for onion peers. |
+| `listenonion=1` | Create Tor hidden service if Tor control is configured. |
+| `torcontrol=<ip:port>` | Tor control port. |
+| `torpassword=<pass>` | Tor control password. |
+| `proxyrandomize=1` | Randomize proxy credentials for Tor stream isolation. |
+| `peerbloomfilters=1` | Support bloom filters for peers. Usually leave default. |
+| `permitbaremultisig=1` | Relay non-P2SH multisig. Leave default. |
+| `enablebip61=1` | Send reject messages. Legacy/debug use. |
+| `maxtimeadjustment=<sec>` | Max peer time offset adjustment. Advanced. |
+
+### Fork Compatibility
+
+| Option | Use |
+| --- | --- |
+| `forkminpeerversion=<n>` | Minimum peer protocol version after configured height. |
+| `forkminpeerheight=<n>` | Height from which the minimum peer protocol version is enforced. |
+
+Use these only when coordinating a planned network upgrade.
+
+### RPC and PWA Backend
+
+| Option | Use |
+| --- | --- |
+| `rpcbind=127.0.0.1` | Bind RPC to localhost. Recommended default. |
+| `rpcallowip=127.0.0.1` | Allow localhost RPC clients. Recommended default. |
+| `rpcport=3889` | Mainnet RPC port. Usually leave default. |
+| `rpcuser=<user>` | RPC username. Use with `rpcpassword`, or prefer `rpcauth`. |
+| `rpcpassword=<password>` | RPC password. Avoid public repos and logs. |
+| `rpcauth=<user:salt$hash>` | Safer static RPC auth format. Recommended for production. |
+| `rpccookiefile=<path>` | Custom RPC cookie path. Usually leave default. |
+| `rpcthreads=<n>` | RPC worker threads. Increase for API/proxy backends. |
+| `rpcworkqueue=<n>` | RPC request queue depth. Increase for bursts. |
+| `rpcservertimeout=<sec>` | RPC HTTP timeout. Increase for slow backend calls. |
+| `rpcserialversion=<n>` | Raw transaction/block serialization version. Advanced compatibility. |
+| `rpcmaxcallcontractgas=<n>` | Max gas for local `callcontract` simulation only. |
+| `rpcmaxgasprice=<n>` | Max gas price allowed through RPC wallet operations. |
+| `rest=1` | Enable REST interface. Usually avoid unless needed behind trusted proxy. |
+
+Do not expose RPC directly to the internet. Use a firewall, VPN, or API gateway.
+
+### Wallet and Staking
+
+| Option | Use |
+| --- | --- |
+| `disablewallet=1` | Disable wallet and wallet RPC. Use for non-staking backend/index nodes. |
+| `wallet=<path>` | Load a specific wallet. Can be repeated. |
+| `walletdir=<dir>` | Directory for wallets. |
+| `walletbroadcast=1` | Let wallet broadcast transactions. Usually keep enabled. |
+| `walletnotify=<cmd>` | Run command when wallet transaction changes. |
+| `staking=1` | Enable staking. Node must be synced and wallet ready. |
+| `staking=0` | Disable staking. Good for temporary sync/backend nodes without wallet. |
+| `stakecache=1` | Improve staking performance, uses more memory. |
+| `stakecache=0` | Lower memory mode for weak machines. |
+| `aggressive-staking=1` | More frequent checks to publish valid PoS block immediately. Strong machines only. |
+| `reservebalance=<amount>` | Keep this balance out of staking. Use `0` to stake all available balance. |
+| `rescan=1` | Rescan blockchain for wallet transactions. Use only when needed. Remove after use. |
+| `salvagewallet=1` | Try to recover private keys from corrupt wallet. Recovery only. |
+| `zapwallettxes=<mode>` | Delete wallet tx records and recover via rescan. Recovery only. |
+| `upgradewallet=1` | Upgrade wallet format. Use only when intended. |
+| `keypool=<n>` | Wallet key pool size. Usually leave default. |
+| `addresstype=<type>` | Address type for new receiving addresses. Leave default unless tested. |
+| `changetype=<type>` | Change output address type. Leave default unless tested. |
+| `avoidpartialspends=1` | Group outputs by address for better privacy; may increase fees. |
+| `spendzeroconfchange=1` | Allow spending unconfirmed change. Usually leave default. |
+| `usechangeaddress=1` | Use change addresses. Usually leave default. |
+| `walletrejectlongchains=1` | Prevent wallet from creating long mempool chains. Usually leave default. |
+
+### Fees and Relay
+
+| Option | Use |
+| --- | --- |
+| `paytxfee=<amt>` | Fixed wallet transaction fee rate. Usually avoid fixed fees. |
+| `fallbackfee=<amt>` | Fee when estimation is unavailable. |
+| `mintxfee=<amt>` | Minimum fee for wallet transaction creation. |
+| `discardfee=<amt>` | Fee threshold for discarding change as fee. |
+| `txconfirmtarget=<n>` | Confirmation target for wallet fee estimation. |
+| `minrelaytxfee=<amt>` | Minimum relay fee. Advanced policy. |
+| `incrementalrelayfee=<amt>` | Replacement/incremental relay fee. Advanced policy. |
+| `dustrelayfee=<amt>` | Dust threshold fee. Advanced policy. |
+| `mempoolreplacement=1` | Enable replacement policy. Leave default normally. |
+| `walletrbf=1` | Wallet creates opt-in RBF transactions for RPC sends. Wallet policy option. |
+| `maxtxfee=<amount>` | Maximum total fee allowed for a wallet transaction. Safety limit. |
+| `bytespersigop=<n>` | Sigop relay/mining cost tuning. Advanced. |
+| `datacarrier=1` | Relay/mine data carrier transactions. Leave default. |
+| `datacarriersize=<n>` | Max data carrier size. Advanced. |
+| `whitelistrelay=1` | Relay transactions from whitelisted peers. Advanced. |
+| `whitelistforcerelay=1` | Force relay from whitelisted peers. Advanced. |
+
+### Mempool and Performance
+
+| Option | Use |
+| --- | --- |
+| `maxmempool=<MiB>` | Mempool RAM limit. Increase for servers; reduce for weak machines. |
+| `mempoolexpiry=<hours>` | How long mempool transactions are kept. |
+| `maxorphantx=<n>` | Max orphan transactions kept in memory. |
+| `limitancestorcount=<n>` | Mempool ancestor count policy. Advanced; leave default. |
+| `limitancestorsize=<n>` | Mempool ancestor size policy. Advanced; leave default. |
+| `limitdescendantcount=<n>` | Mempool descendant count policy. Advanced; leave default. |
+| `limitdescendantsize=<n>` | Mempool descendant size policy. Advanced; leave default. |
+| `persistmempool=1` | Save mempool on shutdown and restore on startup. |
+| `blocksonly=1` | Reject network mempool transactions. Temporary sync mode only for proxy-ready nodes. |
+| `blocksonly=0` | Normal relay. Required for PWA/proxy-ready network nodes. |
+| `par=0` | Auto script verification threads. |
+| `par=1` | Reduce CPU pressure on weak machines. |
+
+### Block Creation and Contract Staker Policy
+
+| Option | Use |
+| --- | --- |
+| `blockmintxfee=<amt>` | Minimum fee rate for transactions included in created blocks. |
+| `blockmaxweight=<n>` | Max block weight. Advanced. |
+| `blockversion=<n>` | Override block version for tests. Do not use on mainnet. |
+| `blockreconstructionextratxn=<n>` | Extra transactions kept in memory for compact block reconstruction. Advanced. |
+| `staker-min-tx-gas-price=<amt>` | Minimum gas price for contract tx included by staker. |
+| `staker-max-tx-gas-limit=<n>` | Max gas limit per contract tx included by staker. |
+| `staker-soft-block-gas-limit=<n>` | Soft gas limit for contract execution in staker block. |
+| `dgpstorage=1` | Receive DGP data via storage. Advanced. |
+| `dgpevm=1` | Receive DGP data via contract call. Default path. |
+
+Leave contract staker policy options unset unless there is a coordinated
+network policy.
+
+### ZHC / EVM State Performance
+
+| Option | Use |
+| --- | --- |
+| `zhcstatecache=<MiB>` | EVM state LevelDB block cache. Useful on strong backend nodes. |
+| `zhcstatewritebuffer=<MiB>` | EVM state LevelDB write buffer. |
+| `zhcstatemaxopenfiles=<n>` | Max open files for EVM state LevelDB. |
+| `zhcstatebloom=<n>` | Bloom filter bits per key for EVM state LevelDB. |
+| `zhcstatelookupcache=<MiB>` | In-memory read-through cache for immutable EVM trie nodes. |
+| `zhcstateforcecompact=1` | Compact EVM state DBs on startup. Use only for maintenance. |
+| `record-log-opcodes=1` | Log all EVM LOG opcode operations to `vmExecLogs.json`. Debug/indexing only. |
+| `minmempoolgaslimit=<n>` | Minimum gas limit accepted into mempool. Debug/policy tuning. |
+
+### ZMQ
+
+| Option | Use |
+| --- | --- |
+| `zmqpubhashblock=<address>` | Publish block hashes. |
+| `zmqpubhashtx=<address>` | Publish tx hashes. |
+| `zmqpubrawblock=<address>` | Publish raw blocks. |
+| `zmqpubrawtx=<address>` | Publish raw transactions. |
+| `zmqpubhashblockhwm=<n>` | High water mark for hashblock publisher. |
+| `zmqpubhashtxhwm=<n>` | High water mark for hashtx publisher. |
+| `zmqpubrawblockhwm=<n>` | High water mark for rawblock publisher. |
+| `zmqpubrawtxhwm=<n>` | High water mark for rawtx publisher. |
+
+ZMQ is useful for indexers and explorers. It is not needed for normal wallets.
+
+### Diagnostics and Logging
+
+| Option | Use |
+| --- | --- |
+| `debug=0` | Normal production/user setting. |
+| `debug=<category>` | Enable debug category such as `net` or `bench`. Temporary diagnostics only. |
+| `debugexclude=<category>` | Exclude a debug category when broad debug logging is enabled. |
+| `debuglogfile=<file>` | Custom debug log file. |
+| `feefilter=1` | Tell peers to filter transaction announcements below the node mempool minimum fee. Leave default. |
+| `logtimestamps=1` | Include timestamps in logs. |
+| `logtimemicros=1` | Microsecond timestamps. Useful for performance debugging. |
+| `logips=1` | Include peer IPs in logs. Be careful with privacy. |
+| `printtoconsole=1` | Print logs to console. Useful for manual debugging. |
+| `shrinkdebugfile=1` | Shrink `debug.log` on startup when debug is not enabled. |
+| `zhcslowblockms=<n>` | Log slow block validation above threshold. |
+| `zhcslowevmms=<n>` | Log slow EVM execution above threshold. |
+| `zhcslowcommitms=<n>` | Log slow EVM commit above threshold. |
+| `printpriority=1` | Log transaction priority/fee data when mining. Debug only. |
+| `uacomment=<text>` | Add comment to user agent string. |
+| `maxsigcachesize=<MiB>` | Limit signature/script cache memory. Advanced performance/debug tuning. |
+
+Temporary freeze diagnostics:
 
 ```ini
 debug=net
 debug=bench
 logtimemicros=1
 zhcslowblockms=500
+zhcslowevmms=500
+zhcslowcommitms=500
 ```
 
-Then reproduce the issue and inspect `debug.log`. Disable these options after
-diagnosis to avoid excessive logs.
+Disable these after collecting logs.
 
-## Windows Stability Notes
+### Consistency Checks and Test Options
 
-For Windows desktop users:
+| Option | Use |
+| --- | --- |
+| `checkblocks=<n>` | Number of recent blocks checked on startup. |
+| `checklevel=<n>` | Thoroughness of startup block checks. |
+| `checkblockindex=1` | Expensive internal block index consistency checks. Debug only. |
+| `checkmempool=<n>` | Mempool consistency checks. Debug only. |
+| `checkpoints=1` | Use checkpoints to reduce expensive historical verification. Usually leave default. |
+| `assumevalid=<hex>` | Assume scripts valid up to a known block. Advanced. |
+| `minimumchainwork=<hex>` | Minimum chain work expected. Advanced. |
+| `maxtipage=<sec>` | Tip age threshold for IBD. Advanced/debug. |
+| `mocktime=<n>` | Fake time for testing. Never use on mainnet. |
+| `stopatheight=<n>` | Stop at height. Testing/maintenance. |
+| `stopafterblockimport=1` | Stop after block import. Import workflows. |
+| `dropmessagestest=<n>` | Randomly drop network messages. Testing only. |
+| `addrmantest=1` | Address relay testing on localhost. Testing only. |
+| `deprecatedrpc=<method>` | Enable deprecated RPC methods. Compatibility only. |
+| `acceptnonstdtxn=1` | Accept non-standard transactions. Test/regtest policy only; avoid on mainnet. |
+| `opsenderheight=<n>` | Regtest-only fork height override. Do not use on mainnet. |
+| `btcecrecoverheight=<n>` | Regtest-only fork height override. Do not use on mainnet. |
+| `constantinopleheight=<n>` | Regtest-only fork height override. Do not use on mainnet. |
+| `difficultychangeheight=<n>` | Regtest-only fork height override. Do not use on mainnet. |
 
-1. Add the ZHCASH data directory to Microsoft Defender or antivirus exclusions.
-2. `listen=0`, `blocksonly=1`, and `staking=0` may be used only during the
-   first catch-up if the node is unstable.
-3. The long-term recommended profile is `listen=1`, `upnp=1`, `blocksonly=0`,
-   `staking=1`, and `maxuploadtarget=0`.
-4. `upnp=1` helps when the router has a public WAN IP. It does not bypass
-   CGNAT or double NAT.
-5. Use `txindex=1` for any node that will support the PWA wallet, proxy, API,
-   explorer, or arbitrary `getrawtransaction` queries.
-6. Use `txindex=0` only for weak machines that must prioritize low disk I/O over
-   PWA/proxy support.
-7. Prefer a small set of trusted `addnode` peers if random peers are unstable.
+### Wallet Database Debug Options
 
-This does not remove all possible causes of UI freezes. Slow disks, antivirus
-scanning, corrupted snapshots, and low RAM can still make the GUI appear
-unresponsive during initial catch-up.
+| Option | Use |
+| --- | --- |
+| `dblogsize=<n>` | Flush wallet database activity after this many MB. Debug/tuning only. |
+| `flushwallet=1` | Periodically flush wallet database. Usually leave default. |
+| `privdb=1` | Use DB_PRIVATE for wallet DB environment. Debug/advanced only. |
+
+### Header Spam Filter
+
+| Option | Use |
+| --- | --- |
+| `headerspamfilter=<n>` | Enable/disable header spam filter behavior. |
+| `headerspamfiltermaxsize=<n>` | Max tracked header spam filter size. |
+| `headerspamfiltermaxavg=<n>` | Max average occurrence size in filter. |
+| `headerspamfilterignoreport=<n>` | Ignore peer port when checking header spam. |
+
+Leave these defaults unless diagnosing header spam or peer behavior.
+
+## Options to Avoid in Normal User Configs
+
+Do not put these in normal user configs unless performing a specific recovery,
+test, or maintenance action:
+
+```ini
+reindex=1
+reindex-chainstate=1
+rescan=1
+salvagewallet=1
+zapwallettxes=1
+deleteblockchaindata=1
+debug=net
+debug=bench
+zhcstateforcecompact=1
+record-log-opcodes=1
+mocktime=1
+stopatheight=1
+```
+
+Remove one-time recovery/debug options after they have been used.
+
+## Practical Recommendations
+
+1. For the network to become stronger, normal users should run with
+   `listen=1`, `upnp=1`, `blocksonly=0`, `txindex=1`, and `maxuploadtarget=0`.
+2. Users behind CGNAT may not receive inbound peers even with `upnp=1`, but they
+   still help through outbound connections, relay, staking, and PWA/proxy-ready
+   RPC when local services use them.
+3. Weak machines are the only normal case where `txindex=0` is recommended.
+4. Server and proxy nodes should run `txindex=1`, `addrindex=1`,
+   `blocksonly=0`, `maxuploadtarget=0`, and higher RPC queues.
+5. RPC must stay private. Public access should go through a controlled API or
+   `ZHP2PProxy` layer.
