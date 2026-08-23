@@ -149,6 +149,7 @@ maxuploadtarget=0
 blocksonly=0
 staking=1
 stakecache=1
+aggressive-staking=1
 reservebalance=0
 txindex=1
 dbcache=4096
@@ -160,6 +161,12 @@ logtimemicros=0
 This profile is not recommended for weak Windows desktops. If the GUI becomes
 unresponsive, lower `maxconnections`, lower `dbcache`, or use the weak staker
 profile.
+
+`aggressive-staking=1` makes the staker check more often so it can publish a
+valid PoS block immediately when it becomes valid. This can improve staking
+responsiveness, but it can also increase stale/orphan risk and the chance of
+peers rejecting early/invalid broadcasts. Use it only on stable, powerful,
+always-on nodes.
 
 ## Temporary Windows Snapshot Sync Config
 
@@ -516,6 +523,7 @@ rpcworkqueue=32
 | `staking=1` | Synced staking wallet | Enables staking when the wallet is ready and synchronized. |
 | `stakecache=0` | Weak stakers | Disables staking cache to reduce memory use. |
 | `stakecache=1` | Powerful and aggressive stakers | Enables staking cache for better staking performance, with higher memory use. |
+| `aggressive-staking=1` | Aggressive stakers only | Checks more often to publish a valid PoS block immediately. Higher responsiveness, higher stale/orphan and rejection risk. |
 | `reservebalance=0` | Stakers | Allows the full available wallet balance to participate in staking. Increase it to keep part of the balance out of staking. |
 | `dbcache` | Performance tuning | Increases database cache in MiB. Higher improves chainstate performance but uses more RAM. |
 | `par=0` | Default recommended | Uses automatic script-verification thread selection. |
