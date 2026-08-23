@@ -39,26 +39,31 @@ Create the file if it does not exist. Restart the node after changing it.
 All configuration examples are comment-free and safe to copy directly into
 `zerohour.conf`. Use `key=value` format.
 
-## Profile Selection
+## Example Configs
 
-| User type | Recommended profile | Main goal |
+Use one of these three examples as the starting point. All examples are
+comment-free and safe to copy directly into `zerohour.conf`.
+
+| User type | Example config | Main goal |
 | --- | --- | --- |
-| Standard user, home internet, no manually configured public IP | Standard User / Network-Supporting Node | Support the network, PWA/proxy ready, safe local RPC |
-| Weak PC or low-resource laptop | Weak Machine / Weak Staker | Avoid freezes and high disk/RAM pressure |
-| Powerful desktop staker | Powerful Staker | Stake, relay, serve blocks, support PWA/proxy |
-| Always-on aggressive staker | Aggressive Staking | Maximum staking responsiveness and network support |
-| Server node / PWA backend / proxy backend | Server / RPC / PWA Proxy Node | Strong backend for PWA wallet and ZHP2PProxy |
-| Explorer / indexer | Infrastructure / Explorer Node | Full indexing and backend RPC capability |
+| Standard user | Standard User / Home Proxy Node | Home proxy-ready node for PWA/ZHP2PProxy, supports the P2P network with `upnp=1`. |
+| Server / proxy | Server / RPC / PWA Proxy Node | Strong backend for PWA wallet, APIs, ZHP2PProxy, and network relay. |
+| Weak machine | Weak Machine / Weak Staker | Low-resource mode for old PCs, weak laptops, slow disks, or freeze-prone Windows machines. |
 
-## Standard User / Network-Supporting Node
+## 1. Standard User / Home Proxy Node
 
-Use this for normal users. It is designed to strengthen the network even when
-the user does not manually configure a public IP. `upnp=1` asks the home router
-to open the P2P port automatically. If the user is behind CGNAT or double NAT,
-inbound connections may still not work, but the node will still connect outbound
-and participate normally.
+Use this for normal users. This is the recommended default long-term profile
+after the snapshot is installed. A standard user node is expected to participate
+in the proxy-ready network layer for PWA wallet and future `ZHP2PProxy` support.
 
-This profile is also PWA/proxy-ready because it keeps `txindex=1`.
+`upnp=1` is intentional here: it asks the home router to open the P2P port
+automatically, so users without manual port forwarding can still accept inbound
+peers when their router and ISP allow it. If the user is behind CGNAT or double
+NAT, inbound connections may still not work, but the node will still connect
+outbound and participate normally.
+
+This profile is PWA/proxy-ready because it uses `txindex=1`, `blocksonly=0`,
+`listen=1`, and `maxuploadtarget=0`.
 
 ```ini
 server=1
@@ -84,9 +89,46 @@ debug=0
 logtimemicros=0
 ```
 
-Use this as the default long-term user profile after the snapshot is installed.
+## 2. Server / RPC / PWA Proxy Node
 
-## Weak Machine / Weak Staker
+Use this for a backend node that supports an API service, PWA wallet, or
+`ZHP2PProxy`. RPC is private by default. On managed servers, use firewall rules
+and keep RPC reachable only from trusted local services or private networks.
+
+This node participates more actively than a normal user node: more peers, larger
+RPC queue, full transaction index, address index, and unlimited upload.
+
+```ini
+server=1
+daemon=1
+rpcbind=127.0.0.1
+rpcallowip=127.0.0.1
+rpcthreads=12
+rpcworkqueue=256
+rpcservertimeout=180
+listen=1
+upnp=0
+dnsseed=1
+discover=1
+maxconnections=128
+maxuploadtarget=0
+blocksonly=0
+staking=0
+txindex=1
+addrindex=1
+dbcache=4096
+par=0
+maxmempool=600
+debug=0
+logtimemicros=0
+```
+
+If the server also stakes, set `staking=1`, `stakecache=1`, and `reservebalance=0`.
+
+Do not expose RPC directly to the public internet. Put public services behind a
+proxy/API layer.
+
+## 3. Weak Machine / Weak Staker
 
 Use this for older laptops, weak Windows PCs, 4 GB RAM systems, slow disks, or
 users who report GUI freezes. This profile still tries to help the network, but
@@ -119,181 +161,23 @@ logtimemicros=0
 Weak nodes can stake and relay normally, but they should not be counted as
 reliable PWA wallet / proxy backends.
 
-## Temporary Snapshot Catch-Up Mode
+## Additional Tuning Notes
 
-Use this only when a Windows node freezes during the first catch-up after
-installing a snapshot. It reduces network and staking pressure. Switch to a
-network-supporting profile after sync.
+Only the three sections above are complete example configs. The notes below are
+small overrides for special cases.
 
-```ini
-server=1
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=4
-rpcworkqueue=64
-rpcservertimeout=120
-listen=0
-upnp=0
-dnsseed=1
-maxconnections=8
-maxuploadtarget=500
-blocksonly=1
-staking=0
-stakecache=0
-txindex=0
-dbcache=512
-par=1
-debug=0
-logtimemicros=0
-```
+| Case | Start from | Override |
+| --- | --- | --- |
+| Powerful staking machine | Standard User / Home Proxy Node | `maxconnections=48`, `dbcache=2048`, `rpcworkqueue=96` |
+| Aggressive staking machine | Standard User / Home Proxy Node | `aggressive-staking=1`, `maxconnections=96`, `dbcache=4096`, `rpcthreads=8`, `rpcworkqueue=128`, `rpcservertimeout=180` |
+| Temporary snapshot catch-up on freeze-prone Windows | Weak Machine / Weak Staker | `listen=0`, `upnp=0`, `maxconnections=8`, `maxuploadtarget=500`, `blocksonly=1`, `staking=0`, `stakecache=0` |
 
-If the machine will later support PWA wallet or proxy calls, enable `txindex=1`
-from the beginning when possible. If the node was synced with `txindex=0`,
-switching to `txindex=1` later can take additional time while the transaction
-index is built.
-
-## Powerful Staker
-
-Use this for a modern desktop/server with SSD or NVMe and at least 8 GB RAM.
-This is the recommended staking profile for users who should support PWA/proxy
-traffic as well.
-
-```ini
-server=1
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=4
-rpcworkqueue=96
-rpcservertimeout=120
-listen=1
-upnp=1
-dnsseed=1
-discover=1
-maxconnections=48
-maxuploadtarget=0
-blocksonly=0
-staking=1
-stakecache=1
-reservebalance=0
-txindex=1
-dbcache=2048
-par=0
-debug=0
-logtimemicros=0
-```
-
-## Aggressive Staking
-
-Use this only on strong always-on machines with stable internet and SSD/NVMe.
 `aggressive-staking=1` checks more often so the node can publish a valid PoS
-block as soon as it becomes valid. In code this reduces the wait loop from about
-3 seconds to about 100 milliseconds. It may improve responsiveness, but it can
-increase stale/orphan risk and early broadcast rejection risk.
+block as soon as it becomes valid. It may improve responsiveness, but it can
+increase stale/orphan risk and early broadcast rejection risk. Use it only on
+stable, powerful, always-on nodes.
 
-```ini
-server=1
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=8
-rpcworkqueue=128
-rpcservertimeout=180
-listen=1
-upnp=1
-dnsseed=1
-discover=1
-maxconnections=96
-maxuploadtarget=0
-blocksonly=0
-staking=1
-stakecache=1
-aggressive-staking=1
-reservebalance=0
-txindex=1
-dbcache=4096
-par=0
-debug=0
-logtimemicros=0
-```
-
-If the GUI becomes unresponsive, lower `maxconnections`, lower `dbcache`, remove
-`aggressive-staking=1`, or use the weak profile.
-
-## Server / RPC / PWA Proxy Node
-
-Use this for a backend node that supports an API service, PWA wallet, or
-`ZHP2PProxy`. RPC is private by default. On managed servers, use firewall rules
-and keep RPC reachable only from trusted local services or private networks.
-
-```ini
-server=1
-daemon=1
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=12
-rpcworkqueue=256
-rpcservertimeout=180
-listen=1
-upnp=0
-dnsseed=1
-discover=1
-maxconnections=128
-maxuploadtarget=0
-blocksonly=0
-staking=0
-txindex=1
-addrindex=1
-dbcache=4096
-par=0
-maxmempool=600
-debug=0
-logtimemicros=0
-```
-
-If the server also stakes, change:
-
-```ini
-staking=1
-stakecache=1
-reservebalance=0
-```
-
-Do not expose RPC directly to the public internet. Put public services behind a
-proxy/API layer.
-
-## Infrastructure / Explorer Node
-
-Use this for explorers, indexers, analytics, and backend services that need
-complete query capability. This is heavier than a normal node.
-
-```ini
-server=1
-daemon=1
-rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcthreads=16
-rpcworkqueue=512
-rpcservertimeout=300
-listen=1
-upnp=0
-dnsseed=1
-discover=1
-maxconnections=192
-maxuploadtarget=0
-blocksonly=0
-staking=0
-txindex=1
-addrindex=1
-dbcache=6144
-par=0
-maxmempool=1000
-zhcstatecache=512
-zhcstatewritebuffer=128
-zhcstatelookupcache=512
-debug=0
-logtimemicros=0
-```
-
-Use only on machines with enough RAM and fast storage.
+Switch back to one of the three main profiles after sync.
 
 ## ZHP2PProxy Preparation
 
@@ -301,30 +185,16 @@ The target direction is that the ZHCASH network can support `ZHP2PProxy`
 gradually, with proxy functionality first tested as an external layer and later
 integrated into the node code where appropriate.
 
-Proxy-ready nodes should use:
+Proxy-ready nodes should use `listen=1`, `dnsseed=1`, `blocksonly=0`,
+`txindex=1`, and `maxuploadtarget=0`.
 
-```ini
-listen=1
-dnsseed=1
-blocksonly=0
-txindex=1
-maxuploadtarget=0
-```
-
-For home nodes behind a router:
-
-```ini
-upnp=1
-```
-
-For managed servers:
-
-```ini
-upnp=0
-```
+For home nodes behind a router, use `upnp=1`. For managed servers with manual
+firewall rules, use `upnp=0`.
 
 Weak machines may use `txindex=0`, lower `maxconnections`, and lower `dbcache`,
-but they should not be treated as PWA/proxy backend nodes.
+but they should not be treated as PWA/proxy backend nodes. Standard user nodes
+should be treated as home proxy-ready nodes when they run the first config. For
+standard home users, keep `upnp=1`.
 
 ## PWA Wallet Usage Model
 
@@ -697,8 +567,9 @@ Remove one-time recovery/debug options after they have been used.
 
 ## Practical Recommendations
 
-1. For the network to become stronger, normal users should run with
-   `listen=1`, `upnp=1`, `blocksonly=0`, `txindex=1`, and `maxuploadtarget=0`.
+1. For the network to become stronger, standard users should run as home
+   proxy-ready nodes with `listen=1`, `upnp=1`, `blocksonly=0`, `txindex=1`,
+   and `maxuploadtarget=0`.
 2. Users behind CGNAT may not receive inbound peers even with `upnp=1`, but they
    still help through outbound connections, relay, staking, and PWA/proxy-ready
    RPC when local services use them.
