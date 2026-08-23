@@ -4,7 +4,7 @@ This page documents practical `zerohour.conf` profiles and the most important
 configuration parameters available in ZHCASH Core v1.0.0.
 
 The goal is to prepare the network for stronger P2P participation,
-`ZHP2PProxy`, and PWA wallet support while still giving weak machines a safe
+[ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy), and PWA wallet support while still giving weak machines a safe
 low-resource mode.
 
 The options below were checked against the node source:
@@ -46,15 +46,15 @@ comment-free and safe to copy directly into `zerohour.conf`.
 
 | User type | Example config | Main goal |
 | --- | --- | --- |
-| Standard user | Standard User / Home Proxy Node | Home proxy-ready node for PWA/ZHP2PProxy, supports the P2P network with `upnp=1`. |
-| Server / proxy | Server / RPC / PWA Proxy Node | Strong backend for PWA wallet, APIs, ZHP2PProxy, and network relay. |
+| Standard user | Standard User / Home Proxy Node | Home proxy-ready node for PWA/[ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy), supports the P2P network with `upnp=1`. |
+| Server / proxy | Server / RPC / PWA Proxy Node | Strong backend for PWA wallet, APIs, [ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy), and network relay. |
 | Weak machine | Weak Machine / Weak Staker | Low-resource mode for old PCs, weak laptops, slow disks, or freeze-prone Windows machines. |
 
 ## 1. Standard User / Home Proxy Node
 
 Use this for normal users. This is the recommended default long-term profile
 after the snapshot is installed. A standard user node is expected to participate
-in the proxy-ready network layer for PWA wallet and future `ZHP2PProxy` support.
+in the proxy-ready network layer for PWA wallet and future [ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy) support.
 
 `upnp=1` is intentional here: it asks the home router to open the P2P port
 automatically, so users without manual port forwarding can still accept inbound
@@ -92,7 +92,7 @@ logtimemicros=0
 ## 2. Server / RPC / PWA Proxy Node
 
 Use this for a backend node that supports an API service, PWA wallet, or
-`ZHP2PProxy`. RPC is private by default. On managed servers, use firewall rules
+[ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy). RPC is private by default. On managed servers, use firewall rules
 and keep RPC reachable only from trusted local services or private networks.
 
 This node participates more actively than a normal user node: more peers, larger
@@ -181,7 +181,9 @@ Switch back to one of the three main profiles after sync.
 
 ## ZHP2PProxy Preparation
 
-The target direction is that the ZHCASH network can support `ZHP2PProxy`
+Repository: [zerohourcash/zhp2pproxy](https://github.com/zerohourcash/zhp2pproxy)
+
+The target direction is that the ZHCASH network can support [ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy)
 gradually, with proxy functionality first tested as an external layer and later
 integrated into the node code where appropriate.
 
@@ -198,7 +200,7 @@ standard home users, keep `upnp=1`.
 
 ## PWA Wallet Usage Model
 
-The PWA wallet can use this system by connecting to a `ZHP2PProxy` or backend
+The PWA wallet can use this system by connecting to a [ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy) or backend
 API layer instead of depending on one overloaded public node.
 
 ```text
@@ -216,12 +218,14 @@ For the PWA wallet, proxy-ready nodes should provide:
 | Transaction lookup | `txindex=1` and `getrawtransaction` |
 | Address and history backend indexing | Stable RPC and full historical transaction access |
 | Transaction broadcast | `blocksonly=0` and working P2P connections |
-| Fast failover | Multiple proxy-ready nodes behind `ZHP2PProxy` |
+| Fast failover | Multiple proxy-ready nodes behind [ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy) |
 | Network resilience | `listen=1`, enough peers, and sufficient upload capacity |
 
 ## ZHP2PProxy Readiness Checklist
 
-Before a node is used by `ZHP2PProxy` or a PWA wallet backend, verify:
+[ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy) repository: [zerohourcash/zhp2pproxy](https://github.com/zerohourcash/zhp2pproxy)
+
+Before a node is used by [ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy) or a PWA wallet backend, verify:
 
 ```bash
 zerohour-cli getblockchaininfo
@@ -577,4 +581,4 @@ Remove one-time recovery/debug options after they have been used.
 4. Server and proxy nodes should run `txindex=1`, `addrindex=1`,
    `blocksonly=0`, `maxuploadtarget=0`, and higher RPC queues.
 5. RPC must stay private. Public access should go through a controlled API or
-   `ZHP2PProxy` layer.
+   [ZHP2PProxy](https://github.com/zerohourcash/zhp2pproxy) layer.
